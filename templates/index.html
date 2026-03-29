@@ -139,7 +139,7 @@
     input::placeholder { color: var(--muted); font-family: var(--font); letter-spacing: 0; }
     input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,68,26,0.15); }
 
-    /* OTP INPUT — big digits */
+    /* OTP INPUT */
     .otp-input {
       font-size: 28px !important;
       letter-spacing: 14px !important;
@@ -292,7 +292,7 @@
       </div>
     </div>
 
-    <!-- ── PANEL 1: Order ID + Email ── -->
+    <!-- PANEL 1: Order ID + Email -->
     <div class="card" id="panel1">
       <div class="card-title"><span class="icon">📋</span> Order Details</div>
 
@@ -314,7 +314,7 @@
 
       <div class="sample-ids">
         <span class="sample-label">Test IDs:</span>
-        <span class="sample-chip" onclick="fillSample('EM1001','ravisharma@gmail.com')">EM1001</span>
+        <span class="sample-chip" onclick="fillSample('EM1001','kumarmoses432@gmail.com')">EM1001</span>
         <span class="sample-chip" onclick="fillSample('EM1002','priyanair@gmail.com')">EM1002</span>
         <span class="sample-chip" onclick="fillSample('EM1003','arjunmehta@gmail.com')">EM1003</span>
         <span class="sample-chip" onclick="fillSample('EM1004','meenapillai@gmail.com')">EM1004</span>
@@ -326,7 +326,7 @@
       </div>
     </div>
 
-    <!-- ── PANEL 2: OTP Entry ── -->
+    <!-- PANEL 2: OTP Entry -->
     <div class="card" id="panel2" style="display:none;">
       <div class="card-title"><span class="icon">🔐</span> Enter OTP</div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;" id="otpSentMsg">
@@ -353,7 +353,7 @@
       </button>
     </div>
 
-    <!-- ── PANEL 3: Order Result ── -->
+    <!-- PANEL 3: Order Result -->
     <div class="result-card" id="resultCard" style="display:none;"></div>
 
   </main>
@@ -365,7 +365,6 @@
 </div>
 
 <script>
-  // ── STATE ──────────────────────────────────
   let currentOrderId = '';
   let currentEmail   = '';
   let timerInterval  = null;
@@ -378,7 +377,6 @@
     shipped:'status-shipped', out_for_delivery:'status-out', delivered:'status-delivered'
   };
 
-  // ── HELPERS ────────────────────────────────
   function fillSample(id, email) {
     document.getElementById('orderInput').value = id;
     document.getElementById('emailInput').value  = email;
@@ -396,12 +394,9 @@
   function setBtn(id, loading, text) {
     const btn = document.getElementById(id);
     btn.disabled = loading;
-    btn.innerHTML = loading
-      ? `<div class="spinner"></div> ${text}`
-      : text;
+    btn.innerHTML = loading ? `<div class="spinner"></div> ${text}` : text;
   }
 
-  // ── STEP INDICATOR ─────────────────────────
   function setStep(n) {
     [1,2,3].forEach(i => {
       const num = document.getElementById(`snum${i}`);
@@ -417,7 +412,6 @@
     });
   }
 
-  // ── OTP COUNTDOWN TIMER ───────────────────
   function startTimer(seconds) {
     clearInterval(timerInterval);
     const el = document.getElementById('timerCount');
@@ -439,7 +433,6 @@
     }, 1000);
   }
 
-  // ── STEP 1: SEND OTP ──────────────────────
   async function sendOtp() {
     const orderId = document.getElementById('orderInput').value.trim().toUpperCase();
     const email   = document.getElementById('emailInput').value.trim().toLowerCase();
@@ -463,14 +456,13 @@
       } else {
         currentOrderId = orderId;
         currentEmail   = email;
-        // Move to step 2
         document.getElementById('panel1').style.display = 'none';
         document.getElementById('panel2').style.display = 'block';
         document.getElementById('otpSentMsg').textContent =
           `${data.message}. Enter the 6-digit code below.`;
         document.getElementById('resendBtn').style.display = 'none';
         setStep(2);
-        startTimer(300); // 5 minutes
+        startTimer(300);
         document.getElementById('otpInput').focus();
       }
 
@@ -481,7 +473,6 @@
     }
   }
 
-  // ── STEP 2: VERIFY OTP ───────────────────
   async function verifyOtp() {
     const otp = document.getElementById('otpInput').value.trim();
 
@@ -516,7 +507,6 @@
     }
   }
 
-  // ── STEP 3: FETCH ORDER ──────────────────
   async function fetchOrder() {
     try {
       const res  = await fetch('/track', {
@@ -543,7 +533,6 @@
     }
   }
 
-  // ── RESET ────────────────────────────────
   function resetToStep1() {
     clearInterval(timerInterval);
     currentOrderId = '';
@@ -563,7 +552,6 @@
     setStep(1);
   }
 
-  // ── BUILD ORDER CARD ──────────────────────
   function buildOrderCard(o) {
     const statusClass = STATUS_CLASS[o.status_code] || 'status-confirmed';
     const currentStep = STATUS_STEPS[o.status_code] || 1;
@@ -638,7 +626,6 @@
       { day:'numeric', month:'short', year:'numeric' });
   }
 
-  // Enter key support
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('orderInput').addEventListener('keydown', e => { if(e.key==='Enter') sendOtp(); });
     document.getElementById('emailInput').addEventListener('keydown', e => { if(e.key==='Enter') sendOtp(); });

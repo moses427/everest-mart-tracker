@@ -10,21 +10,21 @@ app = Flask(__name__)
 
 # ─────────────────────────────────────────────
 #  EMAIL CONFIG — loaded from environment variables
-#  Never hardcode these. Set them in Render dashboard.
+#  Set these in Render dashboard (never hardcode)
 # ─────────────────────────────────────────────
 EMAIL_USER = os.environ.get("EMAIL_USER")   # your Gmail address
 EMAIL_PASS = os.environ.get("EMAIL_PASS")   # your Gmail App Password
 
 # ─────────────────────────────────────────────
 #  FAKE ORDER DATABASE
-#  Each order now includes the customer email
+#  EM1001 uses your real Gmail for testing
 #  Later: replace with WooCommerce API calls
 # ─────────────────────────────────────────────
 ORDERS = {
     "EM1001": {
         "order_id":           "EM1001",
         "customer_name":      "Ravi Sharma",
-        "customer_email":     "ravisharma@gmail.com",
+        "customer_email":     "kumarmoses432@gmail.com",
         "product_name":       "Apple iPhone 15 Pro (256GB, Black)",
         "order_status":       "Out for Delivery",
         "tracking_id":        "DTDC-998812345IN",
@@ -84,28 +84,15 @@ ORDERS = {
 }
 
 # ─────────────────────────────────────────────
-#  OTP STORE — in-memory (no database needed)
-#  Structure:
-#  OTP_STORE["EM1001"] = {
-#      "otp":      "482910",
-#      "expires":  datetime object,
-#      "email":    "customer@gmail.com",
-#      "verified": False
-#  }
+#  OTP STORE — in-memory
 # ─────────────────────────────────────────────
 OTP_STORE = {}
 
 
-# ─────────────────────────────────────────────
-#  HELPER — Generate 6-digit OTP
-# ─────────────────────────────────────────────
 def generate_otp():
     return str(random.randint(100000, 999999))
 
 
-# ─────────────────────────────────────────────
-#  HELPER — Send OTP Email via Gmail SMTP
-# ─────────────────────────────────────────────
 def send_otp_email(to_email, customer_name, order_id, otp):
     try:
         msg = MIMEMultipart("alternative")
@@ -176,44 +163,26 @@ def send_otp_email(to_email, customer_name, order_id, otp):
 
 @app.route("/")
 def home():
-    """Serve the frontend tracking page."""
     return render_template("index.html")
 
 
-# ── NEW ROUTE 1: Send OTP ──────────────────────
 @app.route("/send-otp", methods=["POST"])
 def send_otp():
-    """
-    Accepts JSON: { "order_id": "EM1001", "email": "customer@gmail.com" }
-    Checks order exists + email matches, then sends OTP.
-    """
     data = request.get_json()
 
     if not data or "order_id" not in data or "email" not in data:
-        return jsonify({
-            "success": False,
-            "error": "Please provide Order ID and Email."
-        }), 400
+        return jsonify({"success": False, "error": "Please provide Order ID and Email."}), 400
 
     order_id = data["order_id"].strip().upper()
     email    = data["email"].strip().lower()
 
-    # Check order exists
     order = ORDERS.get(order_id)
     if not order:
-        return jsonify({
-            "success": False,
-            "error": f"No order found with ID '{order_id}'."
-        }), 404
+        return jsonify({"success": False, "error": f"No order found with ID '{order_id}'."}), 404
 
-    # Check email matches
     if order["customer_email"].lower() != email:
-        return jsonify({
-            "success": False,
-            "error": "Email does not match our records for this order."
-        }), 403
+        return jsonify({"success": False, "error": "Email does not match our records for this order."}), 403
 
-    # Generate OTP and store with 5-minute expiry
     otp     = generate_otp()
     expires = datetime.utcnow() + timedelta(minutes=5)
 
@@ -224,113 +193,62 @@ def send_otp():
         "verified": False
     }
 
-    # Send email
     sent = send_otp_email(email, order["customer_name"], order_id, otp)
 
     if not sent:
-        return jsonify({
-            "success": False,
-            "error": "Failed to send OTP email. Please check server email config."
-        }), 500
+        return jsonify({"success": False, "error": "Failed to send OTP email. Please check server email config."}), 500
 
-    return jsonify({
-        "success": True,
-        "message": f"OTP sent to {email[:3]}***@{email.split('@')[1]}"
-    }), 200
+    return jsonify({"success": True, "message": f"OTP sent to {email[:3]}***@{email.split('@')[1]}"}), 200
 
 
-# ── NEW ROUTE 2: Verify OTP ────────────────────
 @app.route("/verify-otp", methods=["POST"])
 def verify_otp():
-    """
-    Accepts JSON: { "order_id": "EM1001", "otp": "482910" }
-    Verifies OTP and marks the session as verified.
-    """
     data = request.get_json()
 
     if not data or "order_id" not in data or "otp" not in data:
-        return jsonify({
-            "success": False,
-            "error": "Please provide Order ID and OTP."
-        }), 400
+        return jsonify({"success": False, "error": "Please provide Order ID and OTP."}), 400
 
     order_id = data["order_id"].strip().upper()
     otp      = data["otp"].strip()
 
-    # Check OTP session exists
     session = OTP_STORE.get(order_id)
     if not session:
-        return jsonify({
-            "success": False,
-            "error": "No OTP found for this order. Please request a new OTP."
-        }), 404
+        return jsonify({"success": False, "error": "No OTP found for this order. Please request a new OTP."}), 404
 
-    # Check expiry
     if datetime.utcnow() > session["expires"]:
         del OTP_STORE[order_id]
-        return jsonify({
-            "success": False,
-            "error": "OTP has expired. Please request a new one."
-        }), 410
+        return jsonify({"success": False, "error": "OTP has expired. Please request a new one."}), 410
 
-    # Check OTP matches
     if otp != session["otp"]:
-        return jsonify({
-            "success": False,
-            "error": "Incorrect OTP. Please check and try again."
-        }), 401
+        return jsonify({"success": False, "error": "Incorrect OTP. Please check and try again."}), 401
 
-    # Mark as verified
     OTP_STORE[order_id]["verified"] = True
 
-    return jsonify({
-        "success": True,
-        "message": "OTP verified successfully."
-    }), 200
+    return jsonify({"success": True, "message": "OTP verified successfully."}), 200
 
 
-# ── EXISTING ROUTE: Track Order (now OTP-protected) ──
 @app.route("/track", methods=["POST"])
 def track_order():
-    """
-    Accepts JSON: { "order_id": "EM1001" }
-    Now REQUIRES OTP to be verified before showing order details.
-    """
     data = request.get_json()
 
     if not data or "order_id" not in data:
-        return jsonify({
-            "success": False,
-            "error": "Please provide a valid Order ID."
-        }), 400
+        return jsonify({"success": False, "error": "Please provide a valid Order ID."}), 400
 
     order_id = data["order_id"].strip().upper()
 
-    # ── SECURITY CHECK: OTP must be verified first ──
     session = OTP_STORE.get(order_id)
     if not session or not session.get("verified"):
-        return jsonify({
-            "success": False,
-            "error": "Unauthorized. Please verify OTP first."
-        }), 401
+        return jsonify({"success": False, "error": "Unauthorized. Please verify OTP first."}), 401
 
-    # Clear OTP after successful access (one-time use)
     del OTP_STORE[order_id]
 
     order = ORDERS.get(order_id)
     if not order:
-        return jsonify({
-            "success": False,
-            "error": f"No order found with ID '{order_id}'."
-        }), 404
+        return jsonify({"success": False, "error": f"No order found with ID '{order_id}'."}), 404
 
-    return jsonify({
-        "success": True,
-        "order":   order
-    }), 200
+    return jsonify({"success": True, "order": order}), 200
 
 
-# ── HEALTH CHECK ───────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
@@ -340,8 +258,5 @@ def health():
     }), 200
 
 
-# ─────────────────────────────────────────────
-#  RUN
-# ─────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
